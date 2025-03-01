@@ -1,0 +1,614 @@
+<html><head>
+<meta http-equiv="Content-Type" content="text/html;charset=UTF-8"> 
+<meta name="Description" content="Parlez a Eliza!">
+<title>Eliza, Thérapeute insultante</title>
+<p1><p>N'hésitez pas à nous suivre sur Scratch : <a href="https://scratch.mit.edu/users/Linux-Scratcher/">@Linux-Scratcher</a></p>
+<p1><p>N'hésitez pas à nous rejoindre sur Scratch : <a href="https://scratch.mit.edu/studios/33663381/comments">#Club Linux-Scratcher</a></p>
+<p1><p>N'hésitez pas à rejoindre notre communoté web : <a href="https://linux-scratcher.fr">.LTchat</a></p>
+<p1><p>N'hésitez pas à rejoindre notre communoté Discord : <a href="https://discord.gg/T6mrkJ6Vrw">*CLS</a></p>
+	<p1><p>N'hésitez pas à nous contacter par mail : <a href="mailto:contact@linux-scratcher.fr">contact@linux-scratcher.fr</a></p>
+
+
+	
+	
+	
+	<script language="JavaScript"><!-- 
+
+// Chat Bot by George Dunlop, www.peccavi.com
+// Note - Eliza is a Classic Model of chat Bots.. but this implementation is mine :)
+// May be used/modified if credit line is retained (c) 1997 All rights reserved
+// Cette vesion traduite par M. Trudel - version 2.4 (janvier 2021)
+
+    loaded = false;						// load flag for interlocking the pages
+
+// OBJECT TYPE DEFINITIONS
+
+// Keys
+
+   maxKey = 40;							// mots cles a incrementer selon la liste - nombre exact
+   keyNotFound = maxKey-1;
+   keyword = new Array(maxKey);
+
+	function key(key,idx,end){
+   	this.key = key;               		// phrase to match
+    	this.idx = idx;               	// first response to use - premiere reponse
+    	this.end = end;               	// last response to use - derniere reponse
+    	this.last = end;				// response used last time - derniere utilisee
+  	}
+	maxrespnses = 119;					// liste des reponses + 1 a incrementer selon la liste
+   response = new Array(maxrespnses);
+
+	maxConj = 24;
+	max2ndConj = 7;
+   var conj1 = new Array(maxConj);
+   var conj2 = new Array(maxConj);
+   var conj3 = new Array(max2ndConj);
+   var conj4 = new Array(max2ndConj);
+   
+
+// Funtion to replaces all occurances of substring substr1 with substr2 within strng
+// fonction pour remplacer les chaines de caracteres selon les 4 possibilites suivantes
+// if type == 0 straight string replacement
+// si type == 0 remplacement complet de la chaine
+// if type == 1 assumes padded strings and replaces whole words only
+// si type == 1 remplacemnt partiel de certains mots
+// if type == 2 non case sensitive assumes padded strings to compare whole word only
+// si type == 2 pas de majuscules et remplacement de certains mots
+// if type == 3 non case sensitive straight string replacement
+// si type == 3 pas de majuscules et remplacement complet de la chaine
+
+	var RPstrg = "";
+
+	function replaceStr( strng, substr1, substr2, type){
+		var pntr = -1; aString = strng;
+		if( type == 0 ){  
+			if( strng.indexOf( substr1 ) >= 0 ){ pntr = strng.indexOf( substr1 );	}
+		} else if( type == 1 ){ 
+			if( strng.indexOf( " "+ substr1 +" " ) >= 0 ){ pntr = strng.indexOf( " " + substr1 + " " ) + 1; }	
+		} else if( type == 2 ){ 
+			bstrng = strng.toUpperCase();
+			bsubstr1 = substr1.toUpperCase();
+			if( bstrng.indexOf( " "+ bsubstr1 +" " )>= 0 ){ pntr = bstrng.indexOf( " " + bsubstr1 + " " ) + 1; }	
+		} else {
+			bstrng = strng.toUpperCase();
+			bsubstr1 = substr1.toUpperCase();
+			if( bstrng.indexOf( bsubstr1 ) >= 0 ){ pntr = bstrng.indexOf( bsubstr1 ); }	
+		}
+		if( pntr >= 0 ){
+			RPstrg += strng.substring( 0, pntr ) + substr2;
+			aString = strng.substring(pntr + substr1.length, strng.length );
+			if( aString.length > 0 ){ replaceStr( aString, substr1, substr2, type ); }
+		}
+		aString =  RPstrg + aString;
+		RPstrg = "";
+		return aString;
+	}	
+
+
+// Function to pad a string.. head, tail & punctuation - enrobage des chaines de caracteres
+
+	punct = new Array(".", ",", "!", "?", ":", ";", "&", '"', "@", "#", "(", ")")
+
+	function padString(strng){
+		aString = " " + strng + " ";
+		for( i=0; i < punct.length; i++ ){
+			aString = replaceStr( aString, punct[i], " " + punct[i] + " ", 0 );
+		}
+		return aString
+	}
+
+// Function to strip padding - fonction pour enlever les guillemets
+
+	function unpadString(strng){
+		aString = strng;
+		aString = replaceStr( aString, "  ", " ", 0 ); 		// compress spaces
+		if( strng.charAt( 0 ) == " " ){ aString = aString.substring(1, aString.length ); }
+		if( strng.charAt( aString.length - 1 ) == " " ){ aString = aString.substring(0, aString.length - 1 ); }
+		for( i=0; i < punct.length; i++ ){
+			aString = replaceStr( aString, " " + punct[i], punct[i], 0 );
+		}
+		return aString
+	}
+
+
+
+// Dress Input formatting i.e leading & trailing spaces and tail punctuation - corrections des entrees
+	
+	var ht = 0;													// head tail stearing
+	
+	function strTrim(strng){
+		if(ht == 0){ loc = 0; }									// head clip
+		else { loc = strng.length - 1; }						// tail clip  ht = 1 
+		if( strng.charAt( loc ) == " "){
+			aString = strng.substring( - ( ht - 1 ), strng.length - ht);
+			aString = strTrim(aString);
+		} else { 
+			var flg = false;
+			for(i=0; i<=5; i++ ){ flg = flg || ( strng.charAt( loc ) == punct[i]); }
+			if(flg){	
+				aString = strng.substring( - ( ht - 1 ), strng.length - ht );
+			} else { aString = strng; }
+			if(aString != strng ){ strTrim(aString); }
+		}
+		if( ht ==0 ){ ht = 1; strTrim(aString); } 
+		else { ht = 0; }		
+		return aString;
+	}
+
+// adjust pronouns and verbs & such - ajustement des pronoms et verbes
+
+	function conjugate( sStrg ){           	// rephrases sString
+		var sString = sStrg;
+		for( i = 0; i < maxConj; i++ ){			// decompose
+			sString = replaceStr( sString, conj1[i], "#@&" + i, 2 );
+		}
+		for( i = 0; i < maxConj; i++ ){			// recompose
+			sString = replaceStr( sString, "#@&" + i, conj2[i], 2 );
+		}
+		// post process the resulting string
+		for( i = 0; i < max2ndConj; i++ ){			// decompose
+			sString = replaceStr( sString, conj3[i], "#@&" + i, 2 );
+		}
+		for( i = 0; i < max2ndConj; i++ ){			// recompose
+			sString = replaceStr( sString, "#@&" + i, conj4[i], 2 );
+		}
+		return sString;
+	}
+
+// Build our response string - construction de la reponse
+// get a random choice of response based on the key - choisir une reponse selon le mot cle
+// Then structure the response - structurer la reponse
+
+	var pass = 0;
+	var thisstr = "";
+		
+	function phrase( sString, keyidx ){
+		idxmin = keyword[keyidx].idx;
+		idrange = keyword[keyidx].end - idxmin + 1;
+		choice = keyword[keyidx].idx + Math.floor( Math.random() * idrange );
+		if( choice == keyword[keyidx].last && pass < 5 ){ 
+			pass++; phrase(sString, keyidx ); 
+		}
+		keyword[keyidx].last = choice;
+		var rTemp = response[choice];
+		var tempt = rTemp.charAt( rTemp.length - 1 );
+		if(( tempt == "*" ) || ( tempt == "@" )){
+			var sTemp = padString(sString);
+			var wTemp = sTemp.toUpperCase();
+			var strpstr = wTemp.indexOf( " " + keyword[keyidx].key + " " );
+   		strpstr += keyword[ keyidx ].key.length + 1;
+			thisstr = conjugate( sTemp.substring( strpstr, sTemp.length ) );
+			thisstr = strTrim( unpadString(thisstr) )
+			if( tempt == "*" ){
+				sTemp = replaceStr( rTemp, "<*", " " + thisstr + "?", 0 );
+			} else { sTemp = replaceStr( rTemp, "<@", " " + thisstr + ".", 0 );
+			}
+		} else sTemp = rTemp;
+		return sTemp;
+	}
+	
+// returns array index of first key found - retourne choix associes a la cle choisie
+
+		var keyid = 0;
+
+	function testkey(wString){
+		if( keyid < keyNotFound
+			&& !( wString.indexOf( " " + keyword[keyid].key + " ") >= 0 )){ 
+			keyid++; testkey(wString); 
+		}
+	}
+	function findkey(wString){ 
+		keyid = 0;
+		found = false;
+		testkey(wString);
+		if( keyid >= keyNotFound ){ keyid = keyNotFound; }
+  		return keyid;  		
+	}
+
+// This is the entry point and the I/O of this code - entrees/sorties du programme
+
+	var wTopic = "";									// Last worthy responce - derniere reponse valide
+	var sTopic = "";									// Last worthy responce
+	var greet = false;
+	var wPrevious = "";        		    				// so we can check for repeats - verification des repetitions
+	var started = false;	
+
+	function listen(User){
+  		sInput = User;
+   	if(started){ clearTimeout(Rtimer); }
+		Rtimer = setTimeout("wakeup()", 180000);		// wake up call
+		started = true;									// needed for Rtimer
+   	sInput = strTrim(sInput);							// dress input formating
+		if( sInput != "" ){ 
+			wInput = padString(sInput.toUpperCase());	// Work copy
+			var foundkey = maxKey;         		  		// assume it's a repeat input
+			if (wInput != wPrevious){   				// check if user repeats himself
+				foundkey = findkey(wInput);   			// look for a keyword.
+			}
+			if( foundkey == keyNotFound ){
+				if( !greet ){ greet = true; return "C'est quoi ton problème a pas vouloire dire bonjour ?" } 
+				else {
+					wPrevious = wInput;          			// save input to check repeats
+					if(( sInput.length < 10 ) && ( wTopic != "" ) && ( wTopic != wPrevious )){
+						lTopic = conjugate( sTopic ); sTopic = ""; wTopic = "";
+						return 'OK... "' + lTopic + '". dis moi en plus... tfaçon c mon metier decouter ta vie de merde';
+					} else {
+						if( sInput.length < 15 ){ 
+							return "dis moi en plus... tfaçon c mon metier decouter ta vie de merde"; 
+						} else { return phrase( sInput, foundkey ); }
+					}
+				}
+			} else { 
+				if( sInput.length > 12 ){ sTopic = sInput; wTopic = wInput; }
+				greet = true; wPrevious = wInput;  			// save input to check repeats
+				return phrase( sInput, foundkey );			// Get our response
+			}
+		} else { return "un message vide ? nan mais t serieu ?"; }
+	}
+	function wakeup(){
+			var strng1 = "    un message vide ? nan mais t serieu ?";
+			var strng2 = "  un message vide ? nan mais t serieu ?";
+			update(strng1,strng2);
+	}
+		
+// build our data base here - conjugaison a ameliorer
+                                 
+    conj1[0]  = "sont";   		conj2[0]  = "suis";
+    conj1[1]  = "suis";   		conj2[1]  = "es";
+    conj1[2]  = "étions";  		conj2[2]  = "étais";
+    conj1[3]  = "étais";  		conj2[3]  = "étiez";
+    conj1[4]  = "je";    		conj2[4]  = "tu";    
+    conj1[5]  = "moi";    		conj2[5]  = "toi";    
+    conj1[6]  = "toi";   		conj2[6]  = "moi";
+    conj1[7]  = "mon";    		conj2[7]  = "ton";    
+    conj1[8]  = "ton";  		conj2[8]  = "mon";
+    conj1[9]  = "notre";  		conj2[9]  = "votre";    
+    conj1[10] = "tiens"; 		conj2[10] = "miens";    
+    conj1[11] = "Je suis";   	conj2[11] = "tu es";
+    conj1[12] = "tu es";  		conj2[12] = "Je suis";    
+    conj1[13] = "J'ai";  		conj2[13] = "tu as";
+    conj1[14] = "tu as"; 		conj2[14] = "j'ai";
+    conj1[15] = "Je vais"; 		conj2[15] = "tu  vas";
+    conj1[16] = "tu vas"; 		conj2[16] = "Je vais";
+    conj1[17] = "moi-même"; 	conj2[17] = "toi-même";
+    conj1[18] = "toi-même"; 	conj2[18] = "moi-même";
+	conj1[19] = "mes"; 			conj2[19] = "tes";
+	conj1[20] = "tes"; 			conj2[20] = "mes";
+	conj1[21] = "te"; 			conj2[21] = "me";
+	conj1[22] = "me"; 			conj2[22] = "te";
+	conj1[23] = "m'"; 			conj2[23] = "t'";
+
+// array to post process correct our tenses of pronouns such as "I/me" - 2e traitement pour certains pronoms
+    
+    conj3[0]  = "moi suis";   	conj4[0]  = "Je suis";
+    conj3[1]  = "suis moi";   	conj4[1]  = "Suis je";
+    conj3[2]  = "moi peux";   	conj4[2]  = "Je peux";
+    conj3[3]  = "peux moi";   	conj4[3]  = "Puis je";
+    conj3[4]  = "moi ai";  		conj4[4]  = "J'ai";
+    conj3[5]  = "moi vais";   	conj4[5]  = "Je vais";
+    conj3[6]  = "vais moi";   	conj4[6]  = "vais Je";
+   
+
+// Keywords - Liste des mots cles
+
+    keyword[ 0]=new key( "PEUX-TU",  		1,  3);
+    keyword[ 1]=new key( "JE PEUX",    		4,  5);
+    keyword[ 2]=new key( "TU ES",  		6,  9);
+    keyword[ 3]=new key( "ELIZA",   		102, 104);
+    keyword[ 4]=new key( "JE NE FAIS PAS",  	10, 13);
+    keyword[ 5]=new key( "JE ME SENS",   	14, 16);
+    keyword[ 6]=new key( "POURQUOI NE", 17, 19);
+    keyword[ 7]=new key( "POURQUOI JE", 20, 21);
+    keyword[ 8]=new key( "ES-TU",  		22, 24);
+    keyword[ 9]=new key( "JE NE PEUX PAS",  25, 27);
+    keyword[10]=new key( "JE SUIS",     28, 31);
+    keyword[11]=new key( "JE ME",      	28, 31);
+    keyword[12]=new key( "TOI",      	32, 34);
+    keyword[13]=new key( "JE VEUX",   	35, 39);
+    keyword[14]=new key( "QUOI",     	40, 48);
+    keyword[15]=new key( "COMMENT",     40, 48);
+    keyword[16]=new key( "QUI",      	40, 48);
+    keyword[17]=new key( "OÙ",    		40, 48);
+	keyword[18]=new key( "OU",    		40, 48); // ajout 2021
+    keyword[19]=new key( "QUAND",     	40, 48);
+    keyword[20]=new key( "POURQUOI",    40, 48);
+    keyword[21]=new key( "NOM",     	49, 50);
+    keyword[22]=new key( "PARCE QUE",   51, 54);
+    keyword[23]=new key( "EXCUSE",    	55, 58);
+	keyword[24]=new key( "RÊVE",    	59, 62);
+	keyword[25]=new key( "REVE",    	59, 62); // ajout 2021 
+    keyword[26]=new key( "BONJOUR",    	63, 63);
+    keyword[27]=new key( "SALUT",		117, 117);
+    keyword[28]=new key( "PEUT-ÊTRE",   64, 68);
+    keyword[29]=new key( "NON",       	69, 73);
+    keyword[30]=new key( "TON",     	74, 75);
+    keyword[31]=new key( "TOUJOURS",   	76, 79);
+    keyword[32]=new key( "PENSE",    	80, 82);
+    keyword[33]=new key( "MAL",    		83, 89);
+    keyword[34]=new key( "OUI",      	90, 92);
+    keyword[35]=new key( "AMI",   		93, 98);
+    keyword[36]=new key( "ORDINATEURS", 99, 105);
+	keyword[37]=new key( "MERCI", 		118, 118);
+	keyword[38]=new key( "MACHINES", 	99, 105);
+		// ajout 2021
+    keyword[39]=new key( "NO KEY FOUND", 106, 112);
+    keyword[40]=new key( "REPEAT INPUT", 113, 116);
+		
+
+
+    response[  0]="ELIZA - Version Javascript par Linux-Scratcher"
+    response[  1]="pff tu crois vrm que je suis pas capable de<*";
+    response[  2]="mdrrr ta envie d'être capable de<*";
+    response[  3]="tu me crois vrm capable de<*";
+    response[  4]="Donc si j'ai bien compris ta même pas envie de<*";
+    response[  5]="tu t'ai vraiment cru capable de<*";
+    response[  6]="wèsh pk tu dit que je suis<*";
+    response[  7]="T'a trop cru t'avais le droit de penser que je suis<*";
+    response[  8]="Tu fait pitiée a avire envie de<*";
+    response[  9]="Ta envie d'être ?<*";
+    response[ 10]="T'a vrm pas envie de<*";
+    response[ 11]="MAIS PK TU FAIT PAS<*";
+    response[ 12]="tu te crois assès fort pour faire<*";
+    response[ 13]="et ça te pose un problème frr ?";
+    response[ 14]="parle plus je comprend rien a ce que tu dit";
+
+
+		
+    response[ 15]="Parceque tu l'impression d'être<*";
+    response[ 16]="tu aime être<*";
+    response[ 17]="ta trop cru je faisait pas<*";
+    response[ 18]="bah a un moment je<@";
+    response[ 19]="ta vrm envie que je<*";
+    response[ 20]="et tu te crois capable de<*";
+    response[ 21]="wèèèshh pk tu peut pas<*";
+    response[ 22]="mais pourquoi tu veut savoire si je suis ou non<*";
+    response[ 23]="t horrible. tu préfèrerais si j'été pas<*";
+    response[ 24]="dans tes phantasmes je suis<*";
+    response[ 25]="pk tu dit que je peux pas<*";
+    response[ 26]="T'a essayé au moin ?";
+    response[ 27]="et t capable au moin<*";
+    response[ 28]="donc t venu me voire parce que t<*";
+    response[ 29]="ça fait longtemp que t<*";
+    response[ 30]="mais frerot c pas normal d'etre<*";
+    response[ 31]="mais j'esspère que t pas content d'être<*";
+    response[ 32]="ON PARLE DE TOI PAS DE MOI OK";
+    response[ 33]="cheh <*";
+    response[ 34]="tu parle pas de moi si ?";
+    response[ 35]="ça veux dire quoi pour toi de vouloire<*";
+    response[ 36]="pk t'a envie de<*";
+    response[ 37]="pense que tu veuille<*";
+    response[ 38]="mais frr aussi ça aurais fait quoi si t'avais jamais<*";
+    response[ 39]="moi aussi je veux<*";
+    response[ 40]="pk tu demande ça???";
+    response[ 41]="mais mdr, elle t'interesse cette question de merde?";
+    response[ 42]="MAIS TU VEUX QUE JE TE DISE QUOI?";
+    response[ 43]="T'en pense quoi ?";
+    response[ 44]="tu te pose souvent cette question de merde ?";
+    response[ 45]="MAIS QUESQUE TU VEUT SAVOIRE ENFT?";
+    response[ 46]="ta déja posé la question a qqn ou t trop con pour ça?";
+    response[ 47]="ta déja posé cette question?";
+    response[ 48]="T' D'AUTRE QUESTIONS OU JE PEUX ME BARRER?";
+    response[ 49]="rien a foutre des noms.";
+    response[ 50]="JE M'EN CONTRE FOU DES NOMS";
+    response[ 51]="mdr, c ta seule raison";
+    response[ 52]="ta d'autre raison?";
+    response[ 53]="ça veux dire autre chose??";
+    response[ 54]="tu pense a d'autre trucs ? non ? je peux me barrer?";
+    response[ 55]="M'en fou de tes excuses";
+    response[ 56]="M'en fou";
+    response[ 57]="je supose que en t'excusant tu crois que je vais t'aimer, bah c'est faux.";
+    response[ 58]="ridicule";
+    response[ 59]="Je m'en fou de tes rêves à la con";
+    response[ 60]="Tu rêve souvent?";
+    response[ 61]="y a qui dans tes rêves?";
+    response[ 62]="t rêve te troubles ?";
+    response[ 63]="Pourquoi tu veut parler ?...... *a pas envie de parler avec toi mais le fait car elle est obligée*";
+
+		
+		
+    response[ 64]="T'a pas l'aire conviqu -_-";
+    response[ 65]="mais pk tu hésite ???";
+    response[ 66]="peut être être un peu plus positif mdr c évident";
+    response[ 67]="t mm pas sur de ça ? alors déguage";
+    response[ 68]="TU LE SAIS MÊME PAS??";
+    response[ 69]="En fait tu dit ça juste pour me faire chialer tellement t négatif c ça?";
+    response[ 70]="PK TU FAIT QUE DIRE NON";
+    response[ 71]="bah pk pas ?";
+    response[ 72]="SUR?";
+    response[ 73]="pk pas?";
+    response[ 74]="Mais en fait ça te concerne pas mon<*";
+    response[ 75]="et le tient alors?<*";
+    response[ 76]="bah asy donne un exemple";
+    response[ 77]="quand?";
+    response[ 78]="MAIS TU PENSE A QUOI WÈSH";
+    response[ 79]="toujours toujours?";
+    response[ 80]="T'y pense vrm??";
+    response[ 81]="mais mdr t pas sur de penser<*";
+    response[ 82]="mais mdr ta peur de penser<*";
+    response[ 83]="comment ça?";
+    response[ 84]="je m'en fou mais dit moi comment ça ce présente?";
+    response[ 85]="wèèè ta une douleur, blablabla et alors?";
+    response[ 86]="ok bah j'en ai rien a foutre mais bon.... jsp quoi te dire moi...";
+    response[ 87]="Y A PAS DE LIEN IDIOT";
+    response[ 88]="hein?";
+    response[ 89]="la douleur fait chier donc ce que j'ai a te dire : cheh";
+    response[ 90]="AH OUAIS ?? T VRM SUR DE ÇA?";
+    response[ 91]="j'men fou.";
+    response[ 92]="je m'en fou";
+    response[ 93]="pk tu me parle de tes amis, car je m'en fou.";
+    response[ 94]="et t amis y en on quelque chose a foutre de toi?";
+
+
+		
+    response[ 95]="Et tes amis je suis sur qu'ils sont tellement cons qu'ils s'en prennent à toi nan?";
+    response[ 96]="si j'ai bien compris t'a pas d'amis c ça?";
+    response[ 97]="tu te comporte comme un tocard avec tes amis?";
+    response[ 98]="je m'en fou de tes amis";
+    response[ 99]="t tellement con ! t'a peur des ordinateurs";
+    response[100]="PK TU PARLE DE MOI WÈSH?";
+    response[101]="si ta peur des machines, déguage";
+    response[102]="mais ta quoi avec les ordinateurs en fait?";
+    response[103]="TU CROIS QUE MES POTES LES MACHINES T POSE PROBLÈME?";
+    response[104]="arrète d'être méchant avec les ordinateurs ou je te tape";
+    response[105]="ta quoi contre les machines?";
+    response[106]="ta un problème dans ta tête OU PAS?";
+    response[107]="je m'en fou";
+    response[108]="je m'en contre fou";
+    response[109]="je comprend rien a ce que tu raconte";
+    response[110]="m'en fou de ce que tu pense ok";
+    response[111]="ok rien a foutre. laisse moi tranquille";
+    response[112]="c pas intéressant. m'en fou de tes messages.";
+    response[113]="wèsh c quoi ton problème a répéter les trucs";
+    response[114]="MAIS ARRÈTE DE TE RÉPÉTER WÈSH T RELOU";
+    response[115]="je m'en fou.";
+    response[116]="arrète de répéter wèsh !!";
+    response[117]="kakou kakou";
+    response[118]="T serieu ? tu crois que j'en ai a foutre que tu me remerci ?";
+		
+    
+    loaded = true;			// set the flag as load done
+               
+///////////////////////////////////////////////////////////////
+//***********************************************************//
+//* everything below here was originally in dia_1.html      *//
+//***********************************************************//
+///////////////////////////////////////////////////////////////
+
+// Chat Bot by George Dunlop, www.peccavi.com
+// May be used/modified if credit line is retained (c) 1997 All rights reserved
+
+// Put together an array for the dialog
+    
+	chatmax = 5;						// number of lines / 2
+	chatpoint = 0;
+	chatter = new Array(chatmax);
+
+// Wait function to allow our pieces to get here prior to starting
+
+	function hello(){
+		chatter[chatpoint] = "> Bonjour, Je suis Eliza l'insulteuse."; 
+		chatpoint = 1;
+		return write();
+	}
+	function start(){
+		for( i = 0; i < chatmax; i++){ chatter[i] = ""; }
+		chatter[chatpoint] = "  Chargement...";
+		document.Eliza.input.focus();
+		write(); 			
+		if( loaded ){ hello() }
+		else { setTimeout("start()", 1000); }
+	}
+
+// Fake time thinking to allow for user self reflection
+// And to give the illusion that some thinking is going on
+	
+	var elizaresponse = "";
+	
+	function think(){
+		document.Eliza.input.value = "";        
+		if( elizaresponse != "" ){ respond(); }		
+		else { setTimeout("think()", 250); }
+	}
+	function dialog(){
+		var Input = document.Eliza.input.value;	  // capture input and copy to log
+		document.Eliza.input.value = "";        
+		chatter[chatpoint] = " \n* " + Input;
+		elizaresponse = listen(Input);
+		setTimeout("think()", 1000 + Math.random()*3000);
+		chatpoint ++ ; 
+		if( chatpoint >= chatmax ){ chatpoint = 0; }
+		return write();
+	}
+	function respond(){
+		chatpoint -- ; 
+		if( chatpoint < 0 ){ chatpoint = chatmax-1; }
+		chatter[chatpoint] += "\n> " + elizaresponse;
+		chatpoint ++ ; 
+		if( chatpoint >= chatmax ){ chatpoint = 0; }
+		return write();
+	}
+// Allow for unprompted response from the engine
+
+	function update(str1,str2){
+		chatter[chatpoint] = " \n> " + str1;
+		chatter[chatpoint] += "\n> " + str2;
+		chatpoint ++ ; 
+		if( chatpoint >= chatmax ){ chatpoint = 0; }
+		return write();
+	}
+
+	function write(){
+		document.Eliza.log.value = "";
+		for(i = 0; i < chatmax; i++){
+			n = chatpoint + i;
+			if( n < chatmax ){ document.Eliza.log.value += chatter[ n ]; }
+			else { document.Eliza.log.value += chatter[ n - chatmax ]; }
+		}
+		refresh();
+		return false;                              // don't redraw the ELIZA's form!
+	}
+	function refresh(){ setTimeout("write()", 10000); }  // Correct user overwrites
+
+///////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////
+
+// --></script>
+
+</head>
+
+<body onload="start();" bgcolor="#FFFFFF">
+<table>
+
+<table class="neurotoy" align="left" border="0" cellpadding="2" cellspacing="1">
+	<tbody><tr><th align="center" bgcolor="#404F75">
+		<font color="#FFFFFF"><b>&nbsp;Jouez avec Eliza la méchante</b></font>
+	</th></tr>
+  	<tr><td bgcolor="#53679A">
+    	<form name="Eliza" onsubmit="return dialog();">
+      	<textarea rows="14" cols="100" name="log"></textarea>
+      	<center><font color="#FFFFFF"><b><br>&nbsp;=> Votre message: &nbsp; </b></font>
+			<input size="50" name="input" value="" type="text"></center>
+    	</form>
+  	</td>
+	<td>
+	&nbsp;
+	</td>
+	<td>
+</table>
+<table>
+<script async src="//pagead2.googlesyndication.com/pagead/js/adsbygoogle.js"></script>
+<ins class="adsbygoogle"
+     style="display:inline-block;width:250px;height:250px"
+     data-ad-client="ca-pub-9120950826255946"
+     data-ad-slot="4291986294"></ins>
+<script>
+     (adsbygoogle = window.adsbygoogle || []).push({});
+</script>
+
+</td></tr>
+</tbody></table>
+</table>
+<br>
+	<br>
+
+
+<table>
+<td align="center">
+<tr>
+<p>
+
+
+	
+</td>
+</tr>
+</table>
+</body>
+</html>
+
+<br>
+<p>Utilisation possible d'Eliza l'insulteuse (attention... ceci est à prendre au second degré) :<br>
+<br>Pour les personnes souffrant de dépression, d'une mauvaise estime d'elles-mêmes, victimes de pervers narcissiques ou de harcèlement, l'utilisation d'Eliza l'insulteuse suit le principe de la vaccination. L'uitlisation d'Eliza l'insulteuse pourrait créer au départ une tension chez l'utilisateur. Mais l'hypothèse posée est que de petites doses d'insultes, venant d'une machine, permettent une prise de recul émotionnel, ainsi qu'un apprentissage des modes de communication toxiques, et peu à peu l'élaboration de stratégies de défense et d'affirmation de soi face à ces modes de communication. 
+<br><br>Ecrivez-moi sur Scratch si ça a marché pour vous, si vous vous êtes senti mieux ou moins bien après utilisation d'Eliza l'insulteuse. Ainsi, je saurai si mon hypothèse est valide. Merci de votre contribution !</p1><br><br>
+
+
+	<p>Merci au créateur de la version originale de Eliza <a href="https://www.eliza.levillage.org/">https://www.eliza.levillage.org/</a></p>
